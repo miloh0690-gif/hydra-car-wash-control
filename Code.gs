@@ -26,6 +26,17 @@ const BLOQUEO_SEGUNDOS = 900; // 15 minutos
 // UTILIDADES
 // ============================================
 
+function jsonResponse(data, cors = true) {
+  const output = ContentService.createTextOutput(JSON.stringify(data));
+  output.setMimeType(ContentService.MimeType.JSON);
+  if (cors) {
+    output.setHeader('Access-Control-Allow-Origin', '*');
+    output.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    output.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  }
+  return output;
+}
+
 function getSheet(hoja) {
   return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(hoja);
 }
@@ -33,7 +44,7 @@ function getSheet(hoja) {
 function escapeFormula(texto) {
   if (!texto) return texto;
   if (typeof texto !== 'string') texto = String(texto);
-  if (texto.match(/^[=+\-@])) {
+  if (texto.match(/^[=+\-@]/)) {
     texto = "'" + texto;
   }
   return texto;
@@ -340,8 +351,6 @@ function obtenerPendientes(token, id_personal) {
     encabezados.forEach((h, idx) => reg[h] = fila[idx]);
     
     if (!id_personal || reg.id_personal === id_personal) {
-      // Verificar que no tenga pago pendiente
-      // (simplificado - en producción se verificaría el período)
       totalDias += parseFloat(reg.jornada) || 0;
     }
   }
@@ -567,49 +576,49 @@ function doPost(e) {
     
     switch (accion) {
       case 'login':
-        return JSON.stringify(doLogin(payload));
+        return jsonResponse(doLogin(payload));
       
       case 'logout':
         invalidarToken(token);
-        return JSON.stringify({ ok: true });
+        return jsonResponse({ ok: true });
       
       case 'personal.listar':
-        return JSON.stringify(listarPersonal(token));
+        return jsonResponse(listarPersonal(token));
       
       case 'personal.crear':
-        return JSON.stringify(crearPersonal(token, payload));
+        return jsonResponse(crearPersonal(token, payload));
       
       case 'personal.editar':
-        return JSON.stringify(editarPersonal(token, payload.id_personal, payload.campo, payload.valor));
+        return jsonResponse(editarPersonal(token, payload.id_personal, payload.campo, payload.valor));
       
       case 'asistencia.listar':
-        return JSON.stringify(listarAsistencia(token, payload.fecha));
+        return jsonResponse(listarAsistencia(token, payload.fecha));
       
       case 'asistencia.guardar':
-        return JSON.stringify(guardarAsistencia(token, payload.fecha, payload.lista));
+        return jsonResponse(guardarAsistencia(token, payload.fecha, payload.lista));
       
       case 'planilla.pendientes':
-        return JSON.stringify(obtenerPendientes(token, payload.id_personal));
+        return jsonResponse(obtenerPendientes(token, payload.id_personal));
       
       case 'planilla.pagar':
-        return JSON.stringify(registrarPago(token, payload));
+        return jsonResponse(registrarPago(token, payload));
       
       case 'planilla.listar':
-        return JSON.stringify(listarPagos(token, payload));
+        return jsonResponse(listarPagos(token, payload));
       
       case 'ajustes.crear':
-        return JSON.stringify(crearAjuste(token, payload));
+        return jsonResponse(crearAjuste(token, payload));
       
       case 'ajustes.listar':
-        return JSON.stringify(listarAjustes(token, payload));
+        return jsonResponse(listarAjustes(token, payload));
       
       case 'reportes.dashboard':
-        return JSON.stringify(obtenerDashboard(token, payload.desde, payload.hasta));
+        return jsonResponse(obtenerDashboard(token, payload.desde, payload.hasta));
       
       default:
-        return JSON.stringify({ ok: false, error: 'Acción no reconocida' });
+        return jsonResponse({ ok: false, error: 'Acción no reconocida' });
     }
   } catch (error) {
-    return JSON.stringify({ ok: false, error: error.toString() });
+    return jsonResponse({ ok: false, error: error.toString() });
   }
 }
