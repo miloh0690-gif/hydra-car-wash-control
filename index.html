@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hydra Car Wash - Control de Personal</title>
+  <!-- Chart.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.min.js"></script>
+  <style>
+    :root {
+      --bg: #0A0F2C;
+      --bg-2: #11183F;
+      --bg-3: #1A2352;
+      --line: #263068;
+      --text: #FFFFFF;
+      --text-dim: #A9B0D0;
+      --silver: #C9CBD0;
+      --red: #E0243B;
+      --red-dark: #B01A2D;
+      --ok: #2FBF71;
+      --warn: #F5A524;
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Oswald', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    
+    /* Logo - Reemplazar con data URI cuando tengas el logo */
+    .logo-placeholder {
+      background: linear-gradient(135deg, var(--bg), var(--bg-2));
+      border: 2px solid var(--red);
+      border-radius: 8px;
+      width: 120px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 10px;
+      font-size: 10px;
+      text-align: center;
+      color: var(--silver);
+      font-weight: bold;
+    }
+    
+    .logo-image {
+      width: 120px;
+      height: 60px;
+      object-fit: contain;
+    }
+    
+    #login-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      padding: 20px;
+    }
+    
+    .login-card {
+      background: var(--bg-2);
+      border-radius: 12px;
+      padding: 30px;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      border: 1px solid var(--line);
+    }
+    
+    .login-title {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+    
+    .input-group {
+      margin-bottom: 15px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 0.9rem;
+      color: var(--text-dim);
+    }
+    
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 12px 15px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 1rem;
+      font-family: system-ui;
+    }
+    
+    input[type="text"]:focus, input[type="password"]:focus {
+      outline: none;
+      border-color: var(--red);
+      box-shadow: 0 0 0 2px rgba(224, 36, 59, 0.3);
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: var(--red);
+      color: var(--text);
+    }
+    
+    .btn-primary:hover {
+      background: var(--red-dark);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(224, 36, 59, 0.4);
+    }
+    
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--text);
+      margin-top: 10px;
+    }
+    
+    .btn-outline:hover {
+      background: var(--bg-3);
+    }
+    
+    .error-msg {
+      background: rgba(224, 36, 59, 0.15);
+      border: 1px solid var(--red);
+      border-radius: 8px;
+      padding: 10px 15px;
+      margin-top: 15px;
+      color: #ff6b6b;
+      font-size: 0.9rem;
+      display: none;
+    }
+    
+    .app-hidden { display: none; }
+    .app-container { display: flex; height: 100vh; overflow: hidden; }
+    
+    .sidebar {
+      width: 240px;
+      background: var(--bg-2);
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .sidebar-header {
+      padding: 20px;
+      text-align: center;
+      border-bottom: 1px solid var(--line);
+    }
+    
+    .nav-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 20px;
+      cursor: pointer;
+      transition: background 0.2s;
+      gap: 12px;
+    }
+    
+    .nav-item:hover { background: var(--bg-3); }
+    .nav-item.active { background: var(--red); color: var(--text); }
+    .nav-item::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--silver);
+      border-radius: 50%;
+    }
+    .nav-item.active::before { background: var(--text); }
+    
+    .nav-label { font-size: 0.9rem; font-weight: 500; }
+    
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      background: var(--bg);
+    }
+    
+    .page-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      color: var(--text);
+    }
+    
+    .hamburger {
+      display: none;
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      width: 30px;
+      height: 30px;
+      flex-direction: column;
+      justify-content: space-around;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      z-index: 100;
+    }
+    
+    .hamburger span {
+      width: 100%;
+      height: 3px;
+      background: var(--text);
+      border-radius: 2px;
+      transition: 0.3s;
+    }
+    
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .card {
+      background: var(--bg-2);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid var(--line);
+    }
+    
+    .card h3 {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+    
+    .card .value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    
+    .card .unit {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--bg-2);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+    
+    th, td {
+      padding: 12px 15px;
+      text-align: left;
+    }
+    
+    th {
+      background: var(--bg-3);
+      color: var(--text-dim);
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+    }
+    
+    tr:nth-child(even) { background: var(--bg); }
+    tr:hover { background: var(--line); }
+    td { color: var(--text); font-size: 0.9rem; }
+    
+    .input-sm {
+      width: 80px;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.9rem;
+      text-align: center;
+    }
+    
+    .btn-sm {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    
+    .btn-sm-primary {
+      background: var(--red);
+      color: var(--text);
+    }
+    
+    .btn-sm-outline {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--text);
+    }
+    
+    .btn-toggle { padding: 8px 16px; font-size: 0.85rem; }
+    
+    @media (max-width: 768px) {
+      .app-container { flex-direction: row; }
+      .sidebar {
+        position: fixed;
+        left: -240px;
+        transition: left 0.3s;
+        z-index: 500;
+      }
+      .sidebar.show { left: 0; }
+      .main-content { margin-left: 0; padding: 15px; }
+      .hamburger { display: flex; }
+      .nav-item { font-size: 0.85rem; padding: 10px 15px; }
+      table { font-size: 0.8rem; }
+    }
+    
+    @media (max-width: 480px) {
+      .login-card { padding: 20px; }
+      .page-title { font-size: 1.5rem; }
+      .card { padding: 15px; }
+      .card .value { font-size: 1.4rem; }
+    }
+  </style>
+</head>
+<body>
+  <button class="hamburger" id="hamburger"><span></span><span></span><span></span></button>
+  
+  <div id="login-screen">
+    <div class="logo-placeholder" id="logo-container">
+      <span>HYDRA<br><span class="nav-label">CAR WASH</span></span>
+    </div>
+    <div class="login-card">
+      <h2 class="login-title">Acceso al Sistema</h2>
+      <div class="input-group">
+        <label for="username">Usuario</label>
+        <input type="text" id="username" placeholder="Ingrese usuario">
+      </div>
+      <div class="input-group">
+        <label for="password">PIN</label>
+        <input type="password" id="password" placeholder="Ingrese PIN">
+      </div>
+      <button class="btn btn-primary" id="login-btn">Entrar</button>
+      <button class="btn btn-outline" id="logo-btn">Cambiar Logo</button>
+      <div class="error-msg" id="error-msg"></div>
+    </div>
+  </div>
+  
+  <div id="app" class="app-hidden">
+    <div class="app-container">
+      <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <div class="logo-placeholder" id="sidebar-logo">
+            <span>HYDRA<br><span class="nav-label">CAR WASH</span></span>
+          </div>
+        </div>
+        <div class="nav-item" data-page="dashboard"><span class="nav-label">Panel de Hoy</span></div>
+        <div class="nav-item" data-page="asistencia"><span class="nav-label">Asistencia</span></div>
+        <div class="nav-item" data-page="personal"><span class="nav-label">Personal</span></div>
+        <div class="nav-item" data-page="planilla"><span class="nav-label">Planilla</span></div>
+        <div class="nav-item" data-page="reportes"><span class="nav-label">Reportes</span></div>
+        <div class="nav-item" data-page="admin"><span class="nav-label">Administración</span></div>
+      </div>
+      
+      <main class="main-content">
+        <div id="page-content"></div>
+      </main>
+    </div>
+  </div>
+  
+  <div id="modal-container" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:1000;">
+    <div style="background:var(--bg-2);border-radius:12px;padding:20px;max-width:400px;width:90%;border:1px solid var(--line);">
+      <h3 style="color:var(--text);margin-bottom:15px;">Subir Logo</h3>
+      <input type="file" id="logo-input" accept="image/*">
+      <button class="btn btn-primary" id="save-logo-btn" style="margin-top:15px;width:100%;">Guardar</button>
+    </div>
+  </div>
+  
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/TU_WEB_APP_ID/exec';
+    let state = { token: null, user: null, personal: [], asistenciaHoy: [], logoData: null };
+    
+    function showError(msg) {
+      document.getElementById('error-msg').textContent = msg;
+      document.getElementById('error-msg').style.display = 'block';
+    }
+    
+    function hideError() { document.getElementById('error-msg').style.display = 'none'; }
+    
+    function formatMoney(bs) {
+      if (!bs) return 'Bs 0.00';
+      return new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB', minimumFractionDigits: 2 }).format(bs).replace('Bs', ' Bs');
+    }
+    
+    function formatDate(date) {
+      if (!date) return '';
+      const d = new Date(date);
+      const dia = String(d.getDate()).padStart(2, '0');
+      const mes = String(d.getMonth() + 1).padStart(2, '0');
+      const anio = d.getFullYear();
+      return dia + '/' + mes + '/' + anio;
+    }
+    
+    function setDateInput(input, dateStr) {
+      if (!dateStr) return;
+      input.value = dateStr;
+    }
+    
+    function applyLogo(imgData) {
+      state.logoData = imgData;
+      localStorage.setItem('hydraLogo', imgData);
+      document.querySelectorAll('.logo-placeholder').forEach(el => {
+        el.innerHTML = '<img src="' + imgData + '" class="logo-image">';
+      });
+    }
+    
+    async function doLogin() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      hideError();
+      
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ accion: 'login', datos: { usuario: username, pin: password } }),
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+        });
+        const result = await response.json();
+        
+        if (result.ok) {
+          state.token = result.token;
+          state.user = username;
+          document.getElementById('login-screen').classList.add('app-hidden');
+          document.getElementById('app').classList.remove('app-hidden');
+          const savedLogo = localStorage.getItem('hydraLogo');
+          if (savedLogo) applyLogo(savedLogo);
+          navigateTo('dashboard');
+        } else {
+          showError(result.error);
+        }
+      } catch (error) {
+        showError('Error de conexión');
+      }
+    }
+    
+    function navigateTo(page) {
+      state.currentPage = page;
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.page === page);
+      });
+      loadPage(page);
+    }
+    
+    async function loadPersonal() {
+      const content = document.getElementById('page-content');
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ accion: 'personal.listar', token: state.token }),
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+        });
+        const result = await response.json();
+        
+        if (result.ok) {
+          state.personal = result.datos;
+          renderPersonalTable();
+        } else {
+          content.innerHTML = '<p style="color:var(--text-dim)">Error cargando personal</p>';
+        }
+      } catch (e) {
+        content.innerHTML = '<p style="color:var(--text-dim)">Error de conexión</p>';
+      }
+    }
+    
+    function renderPersonalTable() {
+      const content = document.getElementById('page-content');
+      const rows = state.personal.map(p => `
+        <tr>
+          <td>${p.id_personal}</td>
+          <td><strong>${p.nombre}</strong><br><small>${p.cargo}</small></td>
+          <td><input type="number" class="input-sm jornal-input" data-id="${p.id_personal}" value="${p.jornal_bs || 0}" min="0" step="0.5"></td>
+          <td>${p.estado}</td>
+          <td><button class="btn-sm btn-sm-primary" style="display:none;">Guardar</button></td>
+        </tr>
+      `).join('');
+      
+      content.innerHTML = `
+        <h2 class="page-title">Personal</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nombre</th>
+              <th>Jornal (Bs)</th>
+              <th>Estado</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div style="margin-top:15px;">
+          <button class="btn btn-primary btn-sm" onclick="alert('Agregar personal pendiente')">+ Agregar Personal</button>
+        </div>
+      `;
+      
+      // Agregar listeners para cambios de jornal
+      document.querySelectorAll('.jornal-input').forEach(input => {
+        input.addEventListener('change', async function() {
+          const id = this.dataset.id;
+          const valor = parseFloat(this.value) || 0;
+          try {
+            const response = await fetch(API_URL, {
+              method: 'POST',
+              body: JSON.stringify({
+                accion: 'personal.editar',
+                token: state.token,
+                datos: { id_personal: id, campo: 'jornal_bs', valor: valor }
+              }),
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            });
+            const result = await response.json();
+            if (result.ok) {
+              // Actualizar el valor local
+              const p = state.personal.find(op => op.id_personal === id);
+              if (p) p.jornal_bs = valor;
+            } else {
+              // Revertir input si hay error
+              this.value = p ? p.jornal_bs || 0 : 0;
+            }
+          } catch (e) {}
+        });
+      });
+    }
+    
+    async function loadAsistencia() {
+      const content = document.getElementById('page-content');
+      const hoy = formatDate(new Date());
+      
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ accion: 'asistencia.listar', token: state.token, fecha: hoy }),
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+        });
+        const result = await response.json();
+        
+        if (result.ok) {
+          state.asistenciaHoy = result.datos;
+          renderAsistenciaTable();
+        } else {
+          state.asistenciaHoy = [];
+          renderAsistenciaTable();
+        }
+      } catch (e) {
+        state.asistenciaHoy = [];
+        renderAsistenciaTable();
+      }
+    }
+    
+    function renderAsistenciaTable() {
+      const content = document.getElementById('page-content');
+      const estadoMap = { 'Presente': 'presente', '½ día': 'medio', 'Falta': 'ausente', 'Permiso': 'permiso' };
+      
+      const rows = state.personal.map(p => {
+        const asist = state.asistenciaHoy.find(a => a.id_personal === p.id_personal);
+        const estado = asist ? asist.estado : 'Presente';
+        return `
+          <tr>
+            <td>${p.id_personal}</td>
+            <td><strong>${p.nombre}</strong></td>
+            <td>
+              <select class="input-sm" data-id="${p.id_personal}" onchange="cambiarEstado('${p.id_personal}', this.value)">
+                <option value="Presente" ${estado === 'Presente' ? 'selected' : ''}>Presente</option>
+                <option value="½ día" ${estado === '½ día' ? 'selected' : ''}>½ día</option>
+                <option value="Falta" ${estado === 'Falta' ? 'selected' : ''}>Falta</option>
+                <option value="Permiso" ${estado === 'Permiso' ? 'selected' : ''}>Permiso</option>
+              </select>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      
+      content.innerHTML = `
+        <h2 class="page-title">Asistencia - ${formatDate(new Date())}</h2>
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Operador</th><th>Estado</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div style="margin-top:15px;display:flex;gap:10px;">
+          <button class="btn btn-primary btn-sm" onclick="guardarAsistencia()">Guardar Todo</button>
+          <button class="btn btn-outline btn-sm" onclick="asistenciaHoy.forEach(a => cambiarEstado(a.id_personal, 'Presente'))">Marcar Todos Presentes</button>
+        </div>
+      `;
+    }
+    
+    window.cambiarEstado = function(id, estado) {
+      const asist = state.asistenciaHoy.find(a => a.id_personal === id);
+      if (asist) {
+        asist.estado = estado;
+      } else {
+        state.asistenciaHoy.push({ id_personal: id, estado, jornada: estado === '½ día' ? 0.5 : 1 });
+      }
+    };
+    
+    async function guardarAsistencia() {
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({
+            accion: 'asistencia.guardar',
+            token: state.token,
+            datos: {
+              fecha: formatDate(new Date()),
+              lista: state.asistenciaHoy.map(a => ({ id_personal: a.id_personal, estado: a.estado, jornada: a.jornada || 1 }))
+            }
+          }),
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+        });
+        const result = await response.json();
+        if (result.ok) {
+          alert('Asistencia guardada');
+          loadAsistencia();
+        } else {
+          alert('Error: ' + result.error);
+        }
+      } catch (e) {
+        alert('Error de conexión');
+      }
+    }
+    
+    async function loadDashboard() {
+      const content = document.getElementById('page-content');
+      const hoy = formatDate(new Date());
+      
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ accion: 'personal.listar', token: state.token }),
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+        });
+        const result = await response.json();
+        const personal = result.ok ? result.datos : [];
+        
+        const presentes = personal.filter(p => p.estado === 'Activo').length;
+        const totalJornal = personal.reduce((sum, p) => sum + (parseFloat(p.jornal_bs) || 0), 0);
+        
+        content.innerHTML = `
+          <h2 class="page-title">Panel de Hoy</h2>
+          <div class="dashboard-grid">
+            <div class="card">
+              <h3>Personal Presente</h3>
+              <div class="value">${presentes}</div>
+              <div class="unit">operadores</div>
+            </div>
+            <div class="card">
+              <h3>Jornal Total</h3>
+              <div class="value">${formatMoney(totalJornal)}</div>
+              <div class="unit">por día</div>
+            </div>
+            <div class="card">
+              <h3>Estado</h3>
+              <div class="value">${presentes > 0 ? '✓' : '-'}</div>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Operador</th>
+                <th>Jornal (Bs)</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${personal.map(p => `
+                <tr>
+                  <td><strong>${p.nombre}</strong></td>
+                  <td>${formatMoney(p.jornal_bs)}</td>
+                  <td>${p.estado}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      } catch (e) {
+        content.innerHTML = '<p style="color:var(--text-dim)">Error cargando datos</p>';
+      }
+    }
+    
+    async function loadPlanilla() {
+          const content = document.getElementById('page-content');
+          const hoy = formatDate(new Date());
+      
+          try {
+            // Obtener pendientes de pago
+            const paginasResponse = await fetch(API_URL, {
+              method: 'POST',
+              body: JSON.stringify({ accion: 'planilla.pendientes', token: state.token }),
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            });
+            const paginas = await paginasResponse.json();
+        
+            // Obtener personal para lista desplegable
+            const personalResp = await fetch(API_URL, {
+              method: 'POST',
+              body: JSON.stringify({ accion: 'personal.listar', token: state.token }),
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            });
+            const personalResult = await personalResp.json();
+            const personal = personalResult.ok ? personalResult.datos : [];
+        
+            const rows = personal.map(p => {
+              const pend = paginas.ok ? paginas.datos : { monto_por_pagar: 0 };
+              const monto = pend.monto_por_pagar || 0;
+              return `
+                <tr>
+                  <td>${p.id_personal}</td>
+                  <td><strong>${p.nombre}</strong></td>
+                  <td>${formatMoney(p.jornal_bs)}</td>
+                  <td>${formatMoney(monto)}</td>
+                  <td><button class="btn-sm btn-sm-outline" onclick="pagarPersonal('${p.id_personal}', '${p.nombre}', ${p.jornal_bs})">Pagar</button></td>
+                </tr>
+              `;
+            }).join('');
+        
+            content.innerHTML = `
+              <h2 class="page-title">Pendientes de Pago</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Operador</th>
+                    <th>Jornal (Bs)</th>
+                    <th>Monto a Pagar</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            `;
+          } catch (e) {
+            content.innerHTML = '<p style="color:var(--text-dim)">Error cargando datos</p>';
+          }
+        }
+    
+        async function cargarPagosHistoricos() {
+          const content = document.getElementById('page-content');
+      
+          try {
+            const response = await fetch(API_URL, {
+              method: 'POST',
+              body: JSON.stringify({ accion: 'planilla.listar', token: state.token }),
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            });
+            const result = await response.json();
+            const pagos = result.ok ? result.datos : [];
+        
+            const filas = pagos.length > 0 ? pagos.map(p => `
+              <tr>
+                <td>${p.id_pago}</td>
+                <td>${formatMoney(parseFloat(p.total_pagado) || 0)}</td>
+                <td>${p.nombre || p.id_personal}</td>
+                <td>${formatDate(p.fecha)}</td>
+                <td>${p.descripcion || ''}</td>
+              </tr>
+            `).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text-dim)">Sin registros</td></tr>';
+        
+            content.innerHTML = `
+              <h2 class="page-title">Pagos de Planilla</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Total</th>
+                    <th>Operador</th>
+                    <th>Fecha</th>
+                    <th>Descripción</th>
+                  </tr>
+                </thead>
+                <tbody>${filas}</tbody>
+              </table>
+            `;
+          } catch (e) {
+            content.innerHTML = '<p style="color:var(--text-dim)">Error cargando datos</p>';
+          }
+        }
+    
+    async function loadReportes() {
+      const content = document.getElementById('page-content');
+      content.innerHTML = '<h2 class="page-title">Reportes</h2><p style="color:var(--text-dim);">Pendiente implementación</p>';
+    }
+    
+    function loadAdmin() {
+      const content = document.getElementById('page-content');
+      content.innerHTML = `
+        <h2 class="page-title">Administración</h2>
+        <div style="background:var(--bg-2);border-radius:12px;padding:20px;border:1px solid var(--line);margin-bottom:15px;">
+          <h3 style="color:var(--text);margin-bottom:10px;">Configuración</h3>
+          <p style="color:var(--text-dim);margin-bottom:10px;">Para cambiar jornales, ve a la pestaña <strong>Personal</strong></p>
+          <p style="color:var(--text-dim);font-size:0.9rem;">Los jornales se actualizan en tiempo real desde la hoja de cálculo.</p>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="alert('Importar CSV pendiente')">Importar Servicios</button>
+      `;
+    }
+    
+    document.getElementById('login-btn').addEventListener('click', doLogin);
+    document.getElementById('password').addEventListener('keypress', (e) => { if (e.key === 'Enter') doLogin(); });
+    
+    const hamburger = document.getElementById('hamburger');
+    const sidebar = document.getElementById('sidebar');
+    hamburger.addEventListener('click', () => sidebar.classList.toggle('show'));
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => { navigateTo(item.dataset.page); sidebar.classList.remove('show'); });
+    });
+    
+    // Logo modal
+    document.getElementById('logo-btn').addEventListener('click', () => {
+      document.getElementById('modal-container').style.display = 'flex';
+    });
+    document.getElementById('logo-input').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          applyLogo(ev.target.result);
+          document.getElementById('modal-container').style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+    document.getElementById('save-logo-btn').addEventListener('click', () => {
+      document.getElementById('modal-container').style.display = 'none';
+    });
+    
+    console.log('Hydra Car Wash Control de Personal iniciado');
+  </script>
+</body>
+</html>
