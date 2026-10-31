@@ -43,6 +43,7 @@ th,td{padding:11px 14px;text-align:left;font-size:.9rem}
 th{background:var(--bg3);color:var(--dim);font-size:.75rem;text-transform:uppercase}
 tr:nth-child(even) td{background:var(--bg)}
 .sm{width:95px;padding:7px;text-align:center}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:16px}.cbox{position:relative;height:270px}
 .bar{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:11px 18px;border-radius:8px;background:var(--ok);color:#fff;font-weight:600;z-index:900;display:none;max-width:90%}
 #toast.bad{background:var(--red)}
@@ -81,13 +82,14 @@ tr:nth-child(even) td{background:var(--bg)}
 
 <script>
 // URL de la implementación (Apps Script > Implementar > Aplicación web). Debe terminar en /exec
-const API_URL = 'https://script.google.com/macros/s/AKfycbyrBx8kZbE4xk-ffzNVg1imUIvmxqmNgh-dVSYdKOvm_c7K56NXSJUgSmfGfWCfUXzT/exec';
-const S = { token: null, user: '', rol: '', personal: [], est: {} };
+const API_URL = 'https://script.google.com/macros/s/AKfycbwsyHSXGq4i9KTxsj4vsOnNmGyFZxoUyLl-y1sdHl8dDTB7eDOBu9iCHoCkKRf42tG8/exec';
+const S = { token: null, user: '', rol: '', personal: [], est: {}, tab: 'ventas', rg: null, ch: [] };
 const $ = id => document.getElementById(id), C = () => $('page');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const money = n => 'Bs ' + Number(n || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const hoy = () => { const d = new Date(); return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear(); };
 
+const iso = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 function aviso(msg, bad) {
   const t = $('toast'); t.textContent = msg; t.className = bad ? 'bad' : ''; t.style.display = 'block';
   clearTimeout(aviso.t); aviso.t = setTimeout(() => t.style.display = 'none', 3500);
@@ -149,6 +151,7 @@ const PAGES = {
   async dashboard() {
     await cargarPersonal();
     const a = (await api('asistencia.listar', { fecha: hoy() })).datos;
+    const vt = await api('servicios.reporte', { desde: iso(), hasta: iso() }).catch(() => null);
     let pres = 0, sin = 0, jor = 0;
     const rows = S.personal.map(p => {
       const x = a.find(r => mismo(r.id_personal, p.id_personal)), j = x ? Number(x.jornada) || 0 : 0;
@@ -158,7 +161,8 @@ const PAGES = {
         (x ? esc(x.estado) : '<span class="dim">Sin registrar</span>') + '</td></tr>';
     }).join('');
     C().innerHTML = titulo('Panel de Hoy — ' + hoy()) + '<div class="grid">' + card('Personal presente', pres, 'de ' + S.personal.length + ' operadores') +
-      card('Sin registrar', sin, 'operadores') + card('Jornal del día', money(jor), 'según asistencia') + '</div>' + tabla(['Operador', 'Jornal', 'Asistencia'], rows);
+      card('Sin registrar', sin, 'operadores') + card('Jornal del día', money(jor), 'según asistencia') +
+      (vt ? card('Ventas de hoy', money(vt.total), vt.cantidad + ' servicios') : '') + '</div>' + tabla(['Operador', 'Jornal', 'Asistencia'], rows);
   },
 
   async asistencia() {
@@ -191,12 +195,9 @@ const PAGES = {
   },
 
   async reportes() {
-    const pag = (await api('planilla.listar')).datos, tot = {};
-    pag.forEach(p => tot[p.nombre] = (tot[p.nombre] || 0) + (Number(p.total_pagado) || 0));
-    C().innerHTML = titulo('Reportes') + '<div class="card"><h3>Total pagado por operador (Bs)</h3>' +
-      (pag.length ? '<canvas id="ch" height="120"></canvas>' : '<p class="dim">Aún no hay pagos registrados</p>') + '</div>';
-    if (pag.length && window.Chart) new Chart($('ch'), { type: 'bar', data: { labels: Object.keys(tot), datasets: [{ data: Object.values(tot), backgroundColor: '#E0243B' }] },
-      options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#A9B0D0' } }, y: { ticks: { color: '#A9B0D0' }, beginAtZero: true } } } });
+    const t = S.tab || 'ventas', tabs = [['ventas', 'Ventas de servicios'], ['tarifario', 'Tarifario'], ['pagos', 'Pagos de planilla']];
+    C().innerHTML = titulo('Reportes') + '<div class="bar">' + tabs.map(x => '<button class="btn' + (x[0] === t ? ' p' : '') + '" data-act="tab" data-t="' + x[0] + '">' + x[1] + '</button>').join('') + '</div><div id="rep"><p class="dim">Cargando...</p></div>';
+    await VISTAS[t]();
   },
 
   async admin() {
@@ -205,8 +206,61 @@ const PAGES = {
   }
 };
 
+// ---------- Reportes: vistas y gráficos ----------
+const PAL = ['#E0243B', '#4C8BF5', '#2FBF71', '#F5A524', '#B07CFF', '#C9CBD0', '#27C4D4', '#FF7A59'];
+function dibujar(id, tipo, arr) {
+  if (!window.Chart || !$(id)) return;
+  const pie = tipo === 'pie';
+  S.ch.push(new Chart($(id), { type: tipo, data: { labels: arr.map(x => pie ? x.k + ' · ' + money(x.v) : x.k),
+    datasets: [{ data: arr.map(x => x.v), backgroundColor: pie ? arr.map((_, i) => PAL[i % PAL.length]) : '#E0243B', borderColor: tipo === 'line' ? '#E0243B' : '#0A0F2C', tension: .3 }] },
+    options: { maintainAspectRatio: false, plugins: { legend: { display: pie, position: 'bottom', labels: { color: '#A9B0D0' } }, tooltip: { callbacks: { label: c => money(c.parsed.y ?? c.parsed) } } },
+      scales: pie ? {} : { x: { ticks: { color: '#A9B0D0' } }, y: { beginAtZero: true, ticks: { color: '#A9B0D0' } } } } }));
+}
+const VISTAS = {
+  async ventas() {
+    S.ch.forEach(c => c.destroy()); S.ch = [];
+    const rg = S.rg = S.rg || { desde: iso(), hasta: iso() }, r = await api('servicios.reporte', rg);
+    const filtros = '<div class="bar" style="align-items:center"><input type="date" id="r1" value="' + rg.desde + '" style="width:auto"><span class="dim">a</span><input type="date" id="r2" value="' + rg.hasta + '" style="width:auto">' +
+      '<button class="btn p" data-act="aplicar">Aplicar</button><button class="btn" data-act="rango" data-r="0">Hoy</button><button class="btn" data-act="rango" data-r="6">7 días</button><button class="btn" data-act="rango" data-r="mes">Este mes</button></div>';
+    const cards = '<div class="grid">' + card('Ingresos', money(r.total), r.desde === r.hasta ? r.desde : r.desde + ' al ' + r.hasta) + card('Servicios', r.cantidad, 'realizados') + card('Ticket promedio', money(r.promedio), 'por servicio') +
+      (r.fuera_tarifa ? card('Fuera de tarifa', r.fuera_tarifa, 'precio distinto al tarifario') : '') + '</div>';
+    if (!r.cantidad) { $('rep').innerHTML = filtros + cards + '<p class="dim">No hay servicios registrados en este período.</p>'; return; }
+    const defs = [['Ingreso por tipo de vehículo', 'tipo', 'pie'], ['Ingreso por marca', 'marca', 'pie'], ['Ingresos por operador', 'operador', 'bar'], ['Ingreso por servicio', 'actividad', 'bar']];
+    if (r.por.dia.length > 1) defs.push(['Ingresos por día', 'dia', 'line']);
+    const grid = '<div class="cgrid">' + defs.map((d, i) => '<div class="card"' + (d[1] === 'dia' ? ' style="grid-column:1/-1"' : '') + '><h3>' + d[0] + '</h3><div class="cbox"><canvas id="ch' + i + '"></canvas></div></div>').join('') + '</div>';
+    const rows = r.detalle.map(x => '<tr><td>' + esc(x.fecha) + '</td><td>' + esc(x.cliente) + '</td><td>' + esc(x.placa) + '</td><td>' + esc(x.marca) + ' · ' + esc(x.tipo) + '</td><td>' + esc(x.actividad) + '</td><td>' + esc(x.operador) + '</td><td><strong>' + money(x.total) + '</strong>' +
+      (x.tarifa !== null && x.tarifa !== x.total ? '<br><small style="color:var(--warn,#F5A524)">tarifa ' + money(x.tarifa) + '</small>' : '') + '</td></tr>').join('');
+    $('rep').innerHTML = filtros + cards + grid + '<h3 style="margin:8px 0 12px">Detalle de servicios</h3>' + tabla(['Fecha', 'Cliente', 'Placa', 'Vehículo', 'Servicio', 'Operador', 'Total'], rows) +
+      (r.truncado ? '<p class="dim">Se muestran los 500 servicios más recientes; los gráficos y totales incluyen todos.</p>' : '');
+    defs.forEach((d, i) => dibujar('ch' + i, d[2], r.por[d[1]]));
+  },
+  async tarifario() {
+    const t = (await api('servicios.tarifario')).datos, n = t.servicios.length - 1;
+    const rows = t.servicios.map(s => '<tr><td><strong>' + esc(s.servicio) + '</strong></td>' + s.precios.map(p => '<td>' + money(p) + '</td>').join('') + '</tr>').join('') +
+      '<tr><td class="dim">Ahorro del paquete</td>' + t.tipos.map((_, i) => '<td class="dim">' + money(t.servicios.slice(0, n).reduce((a, s) => a + s.precios[i], 0) - t.servicios[n].precios[i]) + '</td>').join('') + '</tr>';
+    $('rep').innerHTML = tabla(['Servicio'].concat(t.tipos.map(esc)), rows) + '<div class="cgrid">' + t.servicios.map(s => '<div class="card"><h3>' + esc(s.servicio) + '</h3><small>' + esc(s.desc) + '</small></div>').join('') + '</div>';
+  },
+  async pagos() {
+    const pag = (await api('planilla.listar')).datos, tot = {};
+    pag.forEach(p => tot[p.nombre] = (tot[p.nombre] || 0) + (Number(p.total_pagado) || 0));
+    $('rep').innerHTML = '<div class="card"><h3>Total pagado por operador (Bs)</h3>' + (pag.length ? '<div class="cbox"><canvas id="chp"></canvas></div>' : '<p class="dim">Aún no hay pagos registrados</p>') + '</div>';
+    dibujar('chp', 'bar', Object.keys(tot).map(k => ({ k: k, v: tot[k] })));
+  }
+};
+
 // ---------- Acciones (delegadas) ----------
 const ACT = {
+  tab(d) { S.tab = d.t; ir('reportes'); },
+  rango(d) {
+    const h = iso(); let a = h;
+    if (d.r === 'mes') a = h.slice(0, 8) + '01'; else if (d.r !== '0') { const x = new Date(); x.setDate(x.getDate() - Number(d.r)); a = iso(x); }
+    S.rg = { desde: a, hasta: h }; ir('reportes');
+  },
+  aplicar() {
+    const a = $('r1').value, b = $('r2').value;
+    if (!a || !b) throw new Error('Elige las dos fechas'); if (a > b) throw new Error('La fecha inicial es mayor que la final');
+    S.rg = { desde: a, hasta: b }; ir('reportes');
+  },
   async guardar() {
     await api('asistencia.guardar', { fecha: hoy(), lista: Object.keys(S.est).map(id => ({ id_personal: id, estado: S.est[id] })) });
     aviso('Asistencia guardada');
