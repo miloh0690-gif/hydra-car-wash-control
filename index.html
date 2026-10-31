@@ -81,7 +81,7 @@ tr:nth-child(even) td{background:var(--bg)}
 
 <script>
 // URL de la implementación (Apps Script > Implementar > Aplicación web). Debe terminar en /exec
-const API_URL = 'https://script.google.com/macros/s/AKfycbzvSNqRadKeZJ_xSYZMJ8vh-wbLgKSodGNzh_SszEbgMAUdt1R3YeRDmtf3kGWPMRBh/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyrBx8kZbE4xk-ffzNVg1imUIvmxqmNgh-dVSYdKOvm_c7K56NXSJUgSmfGfWCfUXzT/exec';
 const S = { token: null, user: '', rol: '', personal: [], est: {} };
 const $ = id => document.getElementById(id), C = () => $('page');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -239,6 +239,9 @@ const guard = fn => async e => { try { await fn(e); } catch (err) { aviso(err.me
 C().addEventListener('click', guard(async e => { const b = e.target.closest('[data-act]'); if (b) await ACT[b.dataset.act](b.dataset); }));
 C().addEventListener('change', guard(async e => { const el = e.target.closest('[data-chg]'); if (el) await CHG[el.dataset.chg](el); }));
 
+// SOLO PRUEBAS: credenciales precargadas. Dejar en '' antes de entregar al cliente.
+const DEMO_USER = 'admin', DEMO_PIN = '1234';
+$('u').value = DEMO_USER; $('pin').value = DEMO_PIN;
 $('go').addEventListener('click', entrar);
 ['u', 'pin'].forEach(id => $(id).addEventListener('keydown', e => { if (e.key === 'Enter') entrar(); }));
 document.querySelectorAll('.nav[data-p]').forEach(n => n.addEventListener('click', () => ir(n.dataset.p)));
